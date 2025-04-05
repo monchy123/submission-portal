@@ -23,7 +23,9 @@
   </div>
 
   <script>
-    const projectName = decodeURIComponent(location.pathname.replace('/', '')) || '제출 항목 없음';
+    const segments = location.pathname.split('/');
+    const projectName = decodeURIComponent(segments.pop() || segments.pop());
+
     const sheetData = {
       "남산전망대공사": ["착공계", "조직도", "품질시험계획서"],
       "해운대터널공사": ["준공계", "안전관리계획서"]
