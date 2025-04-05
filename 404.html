@@ -7,20 +7,30 @@
   <style>
     body { font-family: sans-serif; padding: 2rem; background: #f5f5f5; }
     .container { max-width: 600px; margin: auto; background: white; padding: 2rem; border-radius: 1rem; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-    h1 { font-size: 1.5rem; margin-bottom: 1rem; }
+    h1 { font-size: 1.5rem; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; }
     .project-list { margin-bottom: 2rem; }
     .project-item { padding: 0.75rem 1rem; margin-bottom: 0.5rem; background: #e9ecef; border-radius: 0.5rem; cursor: pointer; }
     .file-row { margin-bottom: 1rem; }
     .file-label { font-weight: bold; margin-bottom: 0.5rem; }
-    input[type="file"] { display: block; margin-top: 0.5rem; }
-    button { padding: 0.5rem 1rem; border: none; border-radius: 0.5rem; background: #007bff; color: white; cursor: pointer; }
+    input[type="file"], input[type="text"] { display: block; margin-top: 0.5rem; width: 100%; padding: 0.5rem; }
+    button { padding: 0.5rem 1rem; border: none; border-radius: 0.5rem; background: #007bff; color: white; cursor: pointer; margin-top: 0.5rem; }
     button:disabled { background: #ccc; cursor: not-allowed; }
     .status { margin-top: 0.5rem; font-size: 0.9rem; color: green; }
+    .new-project-form { margin-bottom: 2rem; display: none; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1 id="projectTitle">제출 서류 포털</h1>
+    <h1>
+      제출 서류 포털
+      <button onclick="toggleNewProjectForm()">➕ 신규 생성</button>
+    </h1>
+
+    <div id="newProjectForm" class="new-project-form">
+      <input type="text" id="newProjectName" placeholder="새 프로젝트명 입력" />
+      <button onclick="createProject()">프로젝트 생성</button>
+    </div>
+
     <div id="projectList" class="project-list"></div>
     <div id="fileList"></div>
   </div>
@@ -28,32 +38,62 @@
   <script>
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxrcwWrWlZV6w9DRjkbQUkEo1Z8uBmdVh6s2lq_Fww2knT-V9sePAnTSudgSLmnee0WJQ/exec";
     const SHEET_API_URL = "https://script.google.com/macros/s/AKfycbxgMHzdkteivJ-lIA5eQH2G6qwyYpQzGbe-nVOvFRKayUmt52ICjRbJM1SophH-QIhF/exec";
+    const CREATE_PROJECT_URL = "https://script.google.com/macros/s/AKfycbyvJfnRDUzR03jdDAt09VG_YwVJhMCmm7oeafJtoBu3SueeLfF3ElP0lngrWOD2TzPy/exec";
 
     const projectTitle = document.getElementById("projectTitle");
     const projectListContainer = document.getElementById("projectList");
     const fileListContainer = document.getElementById("fileList");
+    const newProjectForm = document.getElementById("newProjectForm");
+    const newProjectName = document.getElementById("newProjectName");
 
     let currentProject = null;
 
-    fetch(SHEET_API_URL)
-      .then(res => res.json())
-      .then(data => {
-        if (data.success && data.projects) {
-          data.projects.forEach(name => {
-            const item = document.createElement("div");
-            item.className = "project-item";
-            item.innerText = name;
-            item.onclick = () => loadProject(name);
-            projectListContainer.appendChild(item);
-          });
-        } else {
-          projectTitle.innerText = "❗️ 프로젝트 목록을 불러오지 못했습니다.";
-        }
-      });
+    function loadProjects() {
+      projectListContainer.innerHTML = "";
+      fetch(SHEET_API_URL)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.projects) {
+            data.projects.forEach(name => {
+              const item = document.createElement("div");
+              item.className = "project-item";
+              item.innerText = name;
+              item.onclick = () => loadProject(name);
+              projectListContainer.appendChild(item);
+            });
+          } else {
+            projectListContainer.innerText = "❗️ 프로젝트 목록을 불러오지 못했습니다.";
+          }
+        });
+    }
+
+    function toggleNewProjectForm() {
+      newProjectForm.style.display = newProjectForm.style.display === "none" ? "block" : "none";
+    }
+
+    function createProject() {
+      const name = newProjectName.value.trim();
+      if (!name) {
+        alert("프로젝트명을 입력해주세요");
+        return;
+      }
+      fetch(`${CREATE_PROJECT_URL}?project=${encodeURIComponent(name)}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            alert("프로젝트가 생성되었습니다");
+            newProjectName.value = "";
+            newProjectForm.style.display = "none";
+            loadProjects();
+          } else {
+            alert("생성 실패: " + data.error);
+          }
+        })
+        .catch(err => alert("오류 발생: " + err.message));
+    }
 
     function loadProject(name) {
       currentProject = name;
-      projectTitle.innerText = `📄 [${name}] 제출 서류 업로드`;
       fileListContainer.innerHTML = "로딩 중...";
 
       fetch(`${SHEET_API_URL}?project=${encodeURIComponent(name)}`)
@@ -118,6 +158,9 @@
 
       reader.readAsDataURL(file);
     }
+
+    // 처음 페이지 로딩 시 프로젝트 목록 로드
+    loadProjects();
   </script>
 </body>
 </html>
