@@ -23,123 +23,13 @@
   <div class="container">
     <h1>
       제출 서류 포털
-      <button onclick="toggleNewProjectForm()">➕ 신규 생성</button>
     </h1>
 
-    <div id="newProjectForm" class="new-project-form">
-      <input type="text" id="newProjectName" placeholder="새 프로젝트명 입력" />
-      <button onclick="createProject()">프로젝트 생성</button>
-    </div>
+    <p style="color: red; font-weight: bold;">⚠ 이 페이지는 Google Apps Script 내부에서 실행되어야 정상 작동합니다.<br>
+    외부 환경에서는 <code>google.script.run</code>이 정의되지 않기 때문에 오류가 발생합니다.</p>
 
-    <div id="projectList" class="project-list"></div>
-    <div id="fileList"></div>
+    <p>이 페이지는 Apps Script 프로젝트에 <code>index.html</code>로 추가한 후 <code>HtmlService.createHtmlOutputFromFile("index")</code>를 통해 웹앱으로 배포해서 사용하세요.</p>
 
-    <script>
-      const projectListContainer = document.getElementById("projectList");
-      const fileListContainer = document.getElementById("fileList");
-      const newProjectForm = document.getElementById("newProjectForm");
-      const newProjectName = document.getElementById("newProjectName");
-
-      let currentProject = null;
-
-      function loadProjects() {
-        google.script.run.withSuccessHandler(data => {
-          if (data.success && data.projects) {
-            projectListContainer.innerHTML = "";
-            data.projects.forEach(name => {
-              const item = document.createElement("div");
-              item.className = "project-item";
-              item.innerText = name;
-              item.onclick = () => loadProject(name);
-              projectListContainer.appendChild(item);
-            });
-          } else {
-            projectListContainer.innerText = "❗️ 프로젝트 목록을 불러오지 못했습니다.";
-          }
-        }).getProjects();
-      }
-
-      function toggleNewProjectForm() {
-        newProjectForm.style.display = newProjectForm.style.display === "none" ? "block" : "none";
-      }
-
-      function createProject() {
-        const name = newProjectName.value.trim();
-        if (!name) {
-          alert("프로젝트명을 입력해주세요");
-          return;
-        }
-        google.script.run.withSuccessHandler(data => {
-          if (data.success) {
-            alert("프로젝트가 생성되었습니다");
-            newProjectName.value = "";
-            newProjectForm.style.display = "none";
-            loadProjects();
-          } else {
-            alert("생성 실패: " + data.error);
-          }
-        }).createProject(name);
-      }
-
-      function loadProject(name) {
-        currentProject = name;
-        fileListContainer.innerHTML = "로딩 중...";
-        google.script.run.withSuccessHandler(data => {
-          fileListContainer.innerHTML = "";
-          if (data.success && data.fields.length > 0) {
-            data.fields.forEach(field => {
-              const row = document.createElement("div");
-              row.className = "file-row";
-              row.innerHTML = `
-                <div class="file-label">📁 ${field}</div>
-                <input type="file" id="file-${field}" />
-                <button onclick="submitFile('${field}')">제출</button>
-                <div class="status" id="status-${field}"></div>
-              `;
-              fileListContainer.appendChild(row);
-            });
-          } else {
-            fileListContainer.innerText = "❗️ 항목이 없습니다.";
-          }
-        }).getFields(name);
-      }
-
-      function submitFile(fieldName) {
-        const input = document.getElementById(`file-${fieldName}`);
-        const status = document.getElementById(`status-${fieldName}`);
-
-        if (!input.files.length) {
-          alert("파일을 선택해주세요");
-          return;
-        }
-
-        const file = input.files[0];
-        const reader = new FileReader();
-
-        reader.onload = function () {
-          const base64Data = reader.result.split(',')[1];
-          const payload = {
-            file: base64Data,
-            filename: file.name,
-            type: file.type,
-            project: currentProject,
-            field: fieldName
-          };
-
-          google.script.run.withSuccessHandler(data => {
-            if (data.success) {
-              status.innerText = `✅ ${data.filename} 제출 완료`;
-            } else {
-              status.innerText = `❌ 제출 실패: ${data.error}`;
-            }
-          }).submitFile(payload);
-        };
-
-        reader.readAsDataURL(file);
-      }
-
-      loadProjects();
-    </script>
   </div>
 </body>
 </html>
