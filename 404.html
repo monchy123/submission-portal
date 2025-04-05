@@ -40,7 +40,6 @@
     const SHEET_API_URL = "https://script.google.com/macros/s/AKfycbz9BAsY2zM31tD_nznBw2XQTibX6OWLzDoBj0EglI9LoOgfOD3E5aYhRJICKVmPee4H/exec";
     const CREATE_PROJECT_URL = "https://script.google.com/macros/s/AKfycby6rpCbOn2vM7DwQWVVy0rq_MCHcFni9yoWetYdUIhl_E2Ema5GzodEaoe2SAZC7cjZ/exec";
 
-    const projectTitle = document.getElementById("projectTitle");
     const projectListContainer = document.getElementById("projectList");
     const fileListContainer = document.getElementById("fileList");
     const newProjectForm = document.getElementById("newProjectForm");
@@ -132,34 +131,37 @@
 
       reader.onload = function () {
         const base64Data = reader.result.split(',')[1];
-        const formData = new FormData();
-        formData.append("file", base64Data);
-        formData.append("filename", file.name);
-        formData.append("type", file.type);
-        formData.append("project", currentProject);
-        formData.append("field", fieldName);
+
+        const payload = {
+          file: base64Data,
+          filename: file.name,
+          type: file.type,
+          project: currentProject,
+          field: fieldName
+        };
 
         fetch(SCRIPT_URL, {
           method: "POST",
-          body: formData
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
         })
-          .then(res => res.json())
-          .then(data => {
-            if (data.success) {
-              status.innerText = `✅ ${data.filename} 제출 완료`;
-            } else {
-              status.innerText = `❌ 제출 실패: ${data.error}`;
-            }
-          })
-          .catch(err => {
-            status.innerText = `❌ 오류 발생: ${err.message}`;
-          });
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            status.innerText = `✅ ${data.filename} 제출 완료`;
+          } else {
+            status.innerText = `❌ 제출 실패: ${data.error}`;
+          }
+        })
+        .catch(err => {
+          status.innerText = `❌ 오류 발생: ${err.message}`;
+        });
       };
 
       reader.readAsDataURL(file);
     }
 
-    // 처음 페이지 로딩 시 프로젝트 목록 로드
+    // 첫 페이지 로딩 시 프로젝트 목록 로드
     loadProjects();
   </script>
 </body>
