@@ -26,33 +26,35 @@
     const segments = location.pathname.split('/');
     const projectName = decodeURIComponent(segments.pop() || segments.pop());
 
-    const sheetData = {
-      "남산전망대공사": ["착공계", "조직도", "품질시험계획서"],
-      "해운대터널공사": ["준공계", "안전관리계획서"]
-    };
-
     const fileListContainer = document.getElementById("fileList");
     const projectTitle = document.getElementById("projectTitle");
 
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxrcwWrWlZV6w9DRjkbQUkEo1Z8uBmdVh6s2lq_Fww2knT-V9sePAnTSudgSLmnee0WJQ/exec"; // <- 나중에 변경
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxrcwWrWlZV6w9DRjkbQUkEo1Z8uBmdVh6s2lq_Fww2knT-V9sePAnTSudgSLmnee0WJQ/exec";
+    const SHEET_API_URL = "https://script.google.com/macros/s/AKfycbxgMHzdkteivJ-lIA5eQH2G6qwyYpQzGbe-nVOvFRKayUmt52ICjRbJM1SophH-QIhF/exec?project=" + encodeURIComponent(projectName);
 
-    if (sheetData[projectName]) {
-      projectTitle.innerText = `📄 [${projectName}] 제출 서류 업로드`;
-
-      sheetData[projectName].forEach(field => {
-        const row = document.createElement("div");
-        row.className = "file-row";
-        row.innerHTML = `
-          <div class="file-label">📁 ${field}</div>
-          <input type="file" id="file-${field}" />
-          <button onclick="submitFile('${field}')">제출</button>
-          <div class="status" id="status-${field}"></div>
-        `;
-        fileListContainer.appendChild(row);
+    fetch(SHEET_API_URL)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.fields.length > 0) {
+          projectTitle.innerText = `📄 [${projectName}] 제출 서류 업로드`;
+          data.fields.forEach(field => {
+            const row = document.createElement("div");
+            row.className = "file-row";
+            row.innerHTML = `
+              <div class="file-label">📁 ${field}</div>
+              <input type="file" id="file-${field}" />
+              <button onclick="submitFile('${field}')">제출</button>
+              <div class="status" id="status-${field}"></div>
+            `;
+            fileListContainer.appendChild(row);
+          });
+        } else {
+          projectTitle.innerText = `❗️[${projectName}] 항목을 찾을 수 없습니다.`;
+        }
+      })
+      .catch(() => {
+        projectTitle.innerText = `❗️[${projectName}] 항목을 불러오는 데 실패했습니다.`;
       });
-    } else {
-      projectTitle.innerText = `❗️[${projectName}] 항목을 찾을 수 없습니다.`;
-    }
 
     function submitFile(fieldName) {
       const input = document.getElementById(`file-${fieldName}`);
