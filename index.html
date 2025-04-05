@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>제출 서류 포털</title>
+  <style>
+    body { font-family: sans-serif; padding: 2rem; background: #f5f5f5; }
+    .container { max-width: 600px; margin: auto; background: white; padding: 2rem; border-radius: 1rem; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+    h1 { font-size: 1.5rem; margin-bottom: 1rem; }
+    .file-row { margin-bottom: 1rem; }
+    .file-label { font-weight: bold; margin-bottom: 0.5rem; }
+    input[type="file"] { display: block; margin-top: 0.5rem; }
+    button { padding: 0.5rem 1rem; border: none; border-radius: 0.5rem; background: #007bff; color: white; cursor: pointer; }
+    button:disabled { background: #ccc; cursor: not-allowed; }
+    .status { margin-top: 0.5rem; font-size: 0.9rem; color: green; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 id="projectTitle">서류 제출</h1>
+    <div id="fileList"></div>
+  </div>
+
+  <script>
+    const segments = location.pathname.split('/');
+    const projectName = decodeURIComponent(segments.pop() || segments.pop());
+
+    const fileListContainer = document.getElementById("fileList");
+    const projectTitle = document.getElementById("projectTitle");
+
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxrcwWrWlZV6w9DRjkbQUkEo1Z8uBmdVh6s2lq_Fww2knT-V9sePAnTSudgSLmnee0WJQ/exec";
+    const SHEET_API_URL = "https://script.google.com/macros/s/AKfycbxgMHzdkteivJ-lIA5eQH2G6qwyYpQzGbe-nVOvFRKayUmt52ICjRbJM1SophH-QIhF/exec?project=" + encodeURIComponent(projectName);
+
+    fetch(SHEET_API_URL)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.fields.length > 0) {
+          projectTitle.innerText = `📄 [${projectName}] 제출 서류 업로드`;
+          data.fields.forEach(field => {
+            const row = document.createElement("div");
+            row.className = "file-row";
+            row.innerHTML = `
+              <div class="file-label">📁 ${field}</div>
+              <input type="file" id="file-${field}" />
+              <button onclick="submitFile('${field}')">제출</button>
+              <div class="status" id="status-${field}"></div>
+            `;
+            fileListContainer.appendChild(row);
+          });
+        } else {
+          projectTitle.innerText = `❗️[${projectName}] 항목을 찾을 수 없습니다.`;
+        }
+      })
+      .catch(() => {
+        projectTitle.innerText = `❗️[${projectName}] 항목을 불러오는 데 실패했습니다.`;
+      });
+
+    function submitFile(fieldName) {
+      const input = document.getElementById(`file-${fieldName}`);
+      const status = document.getElementById(`status-${fieldName}`);
+
+      if (!input.files.length) {
+        alert("파일을 선택해주세요");
+        return;
+      }
+
+      const file = input.files[0];
+      const reader = new FileReader();
+
+      reader.onload = function () {
+        const base64Data = reader.result.split(',')[1];
+        const formData = new FormData();
+        formData.append("file", base64Data);
+        formData.append("filename", file.name);
+        formData.append("type", file.type);
+        formData.append("project", projectName);
+        formData.append("field", fieldName);
+
+        fetch(SCRIPT_URL, {
+          method: "POST",
+          body: formData
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data.success) {
+              status.innerText = `✅ ${data.filename} 제출 완료`;
+            } else {
+              status.innerText = `❌ 제출 실패: ${data.error}`;
+            }
+          })
+          .catch(err => {
+            status.innerText = `❌ 오류 발생: ${err.message}`;
+          });
+      };
+
+      reader.readAsDataURL(file);
+    }
+  </script>
+</body>
+</html>
