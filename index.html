@@ -65,26 +65,36 @@
         return;
       }
 
-      const formData = new FormData();
-      formData.append("file", input.files[0]);
-      formData.append("project", projectName);
-      formData.append("field", fieldName);
+      const file = input.files[0];
+      const reader = new FileReader();
 
-      fetch(SCRIPT_URL, {
-        method: "POST",
-        body: formData
-      })
-        .then(res => res.json())
-        .then(data => {
-          if (data.success) {
-            status.innerText = `✅ ${data.filename} 제출 완료`;
-          } else {
-            status.innerText = `❌ 제출 실패: ${data.error}`;
-          }
+      reader.onload = function () {
+        const base64Data = reader.result.split(',')[1];
+        const formData = new FormData();
+        formData.append("file", base64Data);
+        formData.append("filename", file.name);
+        formData.append("type", file.type);
+        formData.append("project", projectName);
+        formData.append("field", fieldName);
+
+        fetch(SCRIPT_URL, {
+          method: "POST",
+          body: formData
         })
-        .catch(err => {
-          status.innerText = `❌ 오류 발생: ${err.message}`;
-        });
+          .then(res => res.json())
+          .then(data => {
+            if (data.success) {
+              status.innerText = `✅ ${data.filename} 제출 완료`;
+            } else {
+              status.innerText = `❌ 제출 실패: ${data.error}`;
+            }
+          })
+          .catch(err => {
+            status.innerText = `❌ 오류 발생: ${err.message}`;
+          });
+      };
+
+      reader.readAsDataURL(file);
     }
   </script>
 </body>
