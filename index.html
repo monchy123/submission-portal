@@ -33,26 +33,19 @@
 
     <div id="projectList" class="project-list"></div>
     <div id="fileList"></div>
-  </div>
 
-  <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxC1BRTuznH4kLQuxEsMvVAqSGyt5rA8Krd3kHRek51twLxWo2ShgdxnTu1jr_N1yoj/exec";
-    const SHEET_API_URL = "https://script.google.com/macros/s/AKfycbz9BAsY2zM31tD_nznBw2XQTibX6OWLzDoBj0EglI9LoOgfOD3E5aYhRJICKVmPee4H/exec";
-    const CREATE_PROJECT_URL = "https://script.google.com/macros/s/AKfycby6rpCbOn2vM7DwQWVVy0rq_MCHcFni9yoWetYdUIhl_E2Ema5GzodEaoe2SAZC7cjZ/exec";
+    <script>
+      const projectListContainer = document.getElementById("projectList");
+      const fileListContainer = document.getElementById("fileList");
+      const newProjectForm = document.getElementById("newProjectForm");
+      const newProjectName = document.getElementById("newProjectName");
 
-    const projectListContainer = document.getElementById("projectList");
-    const fileListContainer = document.getElementById("fileList");
-    const newProjectForm = document.getElementById("newProjectForm");
-    const newProjectName = document.getElementById("newProjectName");
+      let currentProject = null;
 
-    let currentProject = null;
-
-    function loadProjects() {
-      projectListContainer.innerHTML = "";
-      fetch(SHEET_API_URL)
-        .then(res => res.json())
-        .then(data => {
+      function loadProjects() {
+        google.script.run.withSuccessHandler(data => {
           if (data.success && data.projects) {
+            projectListContainer.innerHTML = "";
             data.projects.forEach(name => {
               const item = document.createElement("div");
               item.className = "project-item";
@@ -63,22 +56,20 @@
           } else {
             projectListContainer.innerText = "❗️ 프로젝트 목록을 불러오지 못했습니다.";
           }
-        });
-    }
-
-    function toggleNewProjectForm() {
-      newProjectForm.style.display = newProjectForm.style.display === "none" ? "block" : "none";
-    }
-
-    function createProject() {
-      const name = newProjectName.value.trim();
-      if (!name) {
-        alert("프로젝트명을 입력해주세요");
-        return;
+        }).getProjects();
       }
-      fetch(`${CREATE_PROJECT_URL}?project=${encodeURIComponent(name)}`)
-        .then(res => res.json())
-        .then(data => {
+
+      function toggleNewProjectForm() {
+        newProjectForm.style.display = newProjectForm.style.display === "none" ? "block" : "none";
+      }
+
+      function createProject() {
+        const name = newProjectName.value.trim();
+        if (!name) {
+          alert("프로젝트명을 입력해주세요");
+          return;
+        }
+        google.script.run.withSuccessHandler(data => {
           if (data.success) {
             alert("프로젝트가 생성되었습니다");
             newProjectName.value = "";
@@ -87,17 +78,13 @@
           } else {
             alert("생성 실패: " + data.error);
           }
-        })
-        .catch(err => alert("오류 발생: " + err.message));
-    }
+        }).createProject(name);
+      }
 
-    function loadProject(name) {
-      currentProject = name;
-      fileListContainer.innerHTML = "로딩 중...";
-
-      fetch(`${SHEET_API_URL}?project=${encodeURIComponent(name)}`)
-        .then(res => res.json())
-        .then(data => {
+      function loadProject(name) {
+        currentProject = name;
+        fileListContainer.innerHTML = "로딩 중...";
+        google.script.run.withSuccessHandler(data => {
           fileListContainer.innerHTML = "";
           if (data.success && data.fields.length > 0) {
             data.fields.forEach(field => {
@@ -114,55 +101,45 @@
           } else {
             fileListContainer.innerText = "❗️ 항목이 없습니다.";
           }
-        });
-    }
-
-    function submitFile(fieldName) {
-      const input = document.getElementById(`file-${fieldName}`);
-      const status = document.getElementById(`status-${fieldName}`);
-
-      if (!input.files.length) {
-        alert("파일을 선택해주세요");
-        return;
+        }).getFields(name);
       }
 
-      const file = input.files[0];
-      const reader = new FileReader();
+      function submitFile(fieldName) {
+        const input = document.getElementById(`file-${fieldName}`);
+        const status = document.getElementById(`status-${fieldName}`);
 
-      reader.onload = function () {
-        const base64Data = reader.result.split(',')[1];
+        if (!input.files.length) {
+          alert("파일을 선택해주세요");
+          return;
+        }
 
-        const payload = {
-          file: base64Data,
-          filename: file.name,
-          type: file.type,
-          project: currentProject,
-          field: fieldName
+        const file = input.files[0];
+        const reader = new FileReader();
+
+        reader.onload = function () {
+          const base64Data = reader.result.split(',')[1];
+          const payload = {
+            file: base64Data,
+            filename: file.name,
+            type: file.type,
+            project: currentProject,
+            field: fieldName
+          };
+
+          google.script.run.withSuccessHandler(data => {
+            if (data.success) {
+              status.innerText = `✅ ${data.filename} 제출 완료`;
+            } else {
+              status.innerText = `❌ 제출 실패: ${data.error}`;
+            }
+          }).submitFile(payload);
         };
 
-        fetch(SCRIPT_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        })
-        .then(res => res.json())
-        .then(data => {
-          if (data.success) {
-            status.innerText = `✅ ${data.filename} 제출 완료`;
-          } else {
-            status.innerText = `❌ 제출 실패: ${data.error}`;
-          }
-        })
-        .catch(err => {
-          status.innerText = `❌ 오류 발생: ${err.message}`;
-        });
-      };
+        reader.readAsDataURL(file);
+      }
 
-      reader.readAsDataURL(file);
-    }
-
-    // 첫 페이지 로딩 시 프로젝트 목록 로드
-    loadProjects();
-  </script>
+      loadProjects();
+    </script>
+  </div>
 </body>
 </html>
