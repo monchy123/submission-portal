@@ -32,6 +32,8 @@
     const fileListContainer = document.getElementById("fileList");
     const projectTitle = document.getElementById("projectTitle");
 
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxrcwWrWlZV6w9DRjkbQUkEo1Z8uBmdVh6s2lq_Fww2knT-V9sePAnTSudgSLmnee0WJQ/exec"; // <- 나중에 변경
+
     if (sheetData[projectName]) {
       projectTitle.innerText = `📄 [${projectName}] 제출 서류 업로드`;
 
@@ -59,7 +61,26 @@
         return;
       }
 
-      status.innerText = `✅ "${input.files[0].name}" 제출됨 (가상)`;
+      const formData = new FormData();
+      formData.append("file", input.files[0]);
+      formData.append("project", projectName);
+      formData.append("field", fieldName);
+
+      fetch(SCRIPT_URL, {
+        method: "POST",
+        body: formData
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            status.innerText = `✅ ${data.filename} 제출 완료`;
+          } else {
+            status.innerText = `❌ 제출 실패: ${data.error}`;
+          }
+        })
+        .catch(err => {
+          status.innerText = `❌ 오류 발생: ${err.message}`;
+        });
     }
   </script>
 </body>
